@@ -108,8 +108,8 @@
 })(jQuery);
 
 // Contact us
-
-document.querySelector('.contact-form').addEventListener('submit', function (event) {
+const contactForm = document.querySelector('.contact-form');
+if (contactForm) contactForm.addEventListener('submit', function (event) {
     event.preventDefault(); // Prevents the default form submission behavior
     
     const form = event.target;
@@ -133,5 +133,74 @@ document.querySelector('.contact-form').addEventListener('submit', function (eve
       console.error('Error:', error);
       alert("Your message has been sent successfully. We'll respond shortly!");
     });
-  });
+    });
+
+// Simple login handler to navigate after submit (placeholder until real backend auth)
+(function () {
+    const form = document.getElementById('login-form');
+    if (!form) return;
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const email = (document.getElementById('email') || {}).value || '';
+            const password = (document.getElementById('password') || {}).value || '';
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+            try {
+                const res = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                if (!res.ok) throw new Error('Login failed');
+                const data = await res.json();
+                // Save token (demo only; consider HttpOnly cookies in real apps)
+                localStorage.setItem('token', data.token);
+                window.location.href = 'index.html';
+            } catch (err) {
+                alert('Invalid credentials or server error');
+            }
+        });
+})();
+
+// Backend health indicator
+(function () {
+    const badge = document.getElementById('api-status-badge');
+    if (!badge) return;
+    const endpoints = [
+        'http://localhost:3000/api/health',
+        'http://127.0.0.1:3000/api/health',
+    ];
+
+    async function checkHealth() {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2500);
+        try {
+            let res;
+            for (const url of endpoints) {
+                try {
+                    res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+                    if (res.ok) break;
+                } catch (e) {
+                    // try next endpoint
+                }
+            }
+            clearTimeout(timer);
+            if (res && res.ok) {
+                badge.className = 'badge bg-success';
+                badge.textContent = 'online';
+            } else {
+                throw new Error('no ok response');
+            }
+        } catch (e) {
+            badge.className = 'badge bg-danger';
+            badge.textContent = 'offline';
+        }
+    }
+
+    // initial and periodic checks
+    checkHealth();
+    setInterval(checkHealth, 15000);
+})();
   
